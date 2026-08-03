@@ -1,295 +1,125 @@
-# 🎯 Visualizzer — Enterprise Attack Path & Recon Graph Visualizer
-
-<p align="center">
-  <img src="https://img.shields.io/badge/Python-3.10%2B-3776AB?style=for-the-badge&logo=python&logoColor=white" alt="Python 3.10+"/>
-  <img src="https://img.shields.io/badge/Graph_Engine-NetworkX-008080?style=for-the-badge" alt="NetworkX"/>
-  <img src="https://img.shields.io/badge/Visualization-PyVis-FF6F61?style=for-the-badge" alt="PyVis"/>
-  <img src="https://img.shields.io/badge/Database-Neo4j-008CC1?style=for-the-badge&logo=neo4j&logoColor=white" alt="Neo4j"/>
-  <img src="https://img.shields.io/badge/License-MIT-4BC51D?style=for-the-badge" alt="MIT License"/>
-  <img src="https://img.shields.io/badge/Domain-Cybersecurity%20%2F%20Red%20Team-red?style=for-the-badge" alt="Red Team Tool"/>
-</p>
-
-<p align="center">
-  <b>Visualizzer</b> is a high-performance threat analysis and attack path visualization engine. It seamlessly ingests heterogeneous recon data (Nmap XML, BloodHound JSONs, raw LDAP dumps), merges entity relationships into a unified <b>directed multigraph</b>, analyzes privilege escalation paths, and renders interactive HTML visualizations.
-</p>
-
----
-
-## 📑 Table of Contents
-
-- [Key Features](#-key-features)
-- [Architecture & Data Pipeline](#-architecture--data-pipeline)
-- [Directory Layout](#-directory-layout)
-- [Installation](#-installation)
-- [Quick Start](#-quick-start)
-- [Command Line Interface (CLI)](#-command-line-interface-cli)
-- [Color Palette & Node Legend](#-color-palette--node-legend)
-- [Path Analysis Capabilities](#-path-analysis-capabilities)
-- [Configuration](#-configuration)
-- [Neo4j Integration](#-neo4j-integration)
-- [Contributing](#-contributing)
-- [License](#-license)
-
----
-
-## ✨ Key Features
-
-- 🔀 **Multi-Source Data Fusion**: Simultaneously ingests and cross-correlates data from:
-  - **Nmap XML/JSON**: Hosts, open ports, OS identification, and running services.
-  - **BloodHound JSONs**: Active Directory objects (`Users`, `Groups`, `Computers`, `Domains`) and relations (`AdminTo`, `MemberOf`, `HasSession`, `GenericAll`, `WriteDacl`, etc.).
-  - **LDAP Dumps**: Custom attribute mappings, Kerberoastable SPNs, and Unconstrained Delegation flags.
-- 🧠 **Intelligent Node Merging**: Automatically resolves entity collisions (e.g., mapping IP `192.168.1.10` from Nmap to `DC01.CORP.LOCAL` from BloodHound) without losing attribute fidelity.
-- ⚡ **Pathfinding & Risk Scoring Engine**:
-  - Finds the shortest attack paths from unprivileged compromise points to **High Value Targets (HVTs)** / Domain Admins.
-  - Highlights Kerberoastable accounts linked to Administrative privileges.
-  - Detects Unconstrained Delegation host vulnerabilities coupled with active admin sessions.
-- 🎨 **Interactive Physics-Driven HTML Graphs**: Built with **PyVis** — featuring node filtering, search, interactive drag-and-drop physics, and detailed metadata hover tooltips.
-- 🗄️ **Neo4j Export**: Option to export Cypher queries or directly push the correlated graph to a live Neo4j database instance.
-- 🧪 **Mock Data Generator Included**: Built-in utility to generate realistic synthetic Active Directory and Nmap scan datasets for offline testing and demos.
-
----
-
-## 🏗️ Architecture & Data Pipeline
-
-Вот продолжение, начиная с диаграммы в разделе **`## 🏗️ Architecture & Data Pipeline`** и до самого конца файла.
-
-Просто скопируй весь блок ниже и вставь его сразу после строки `## 🏗️ Architecture & Data Pipeline`:
-
-```markdown
-
-
+  --bloodhound bloodhound/ \
+  -o output/combined.html
 ```
-
-┌───────────────────┐    ┌───────────────────┐    ┌───────────────────┐
-│     Nmap XML      │    │  BloodHound JSON  │    │     LDAP JSON     │
-└─────────┬─────────┘    └─────────┬─────────┘    └─────────┬─────────┘
-│                        │                        │
-▼                        ▼                        ▼
-┌─────────────────────────────────────────────────────────────────────┐
-│                            PARSER LAYER                             │
-│     (nmap_parser.py | bloodhound_parser.py | ldap_parser.py)        │
-└──────────────────────────────────┬──────────────────────────────────┘
-│
-▼
-┌─────────────────────────────────────────────────────────────────────┐
-│                   GRAPH BUILDER & ENTITY ENGINE                     │
-│      Fuses nodes/edges into unified NetworkX DiGraph (core/)        │
-└──────────────────────────────────┬──────────────────────────────────┘
-│
-▼
-┌─────────────────────────────────────────────────────────────────────┐
-│                         ANALYZER ENGINE                             │
-│     Evaluates PrivEsc paths, HVTs, Delegation & Open Ports (core/)   │
-└─────────┬────────────────────────┴────────────────────────┬─────────┘
-│                                                 │
-▼                                                 ▼
-┌───────────────────┐                             ┌───────────────────┐
-│  PyVis Renderer   │                             │  Neo4j Exporter   │
-│ (Interactive HTML)│                             │  (Cypher / Bolt)  │
-└───────────────────┘                             └───────────────────┘
-
-```
-
----
-
-## 📁 Directory Layout
-
-
-```
-
-visualizzer/
-├── config.py                 # Global styles, colors, physics, and default parameters
-├── models.py                 # Dataclasses for Nodes (User, Group, Computer) & Edges
-├── parsers/
-│   ├── **init**.py
-│   ├── nmap_parser.py        # Parses Nmap XML scans for open ports and services
-│   ├── bloodhound_parser.py  # Parses BloodHound zip/json export files
-│   └── ldap_parser.py        # Parses custom LDAP json/dict attributes
-├── core/
-│   ├── **init**.py
-│   ├── graph_builder.py      # Entity resolution, graph fusion, and NetworkX logic
-│   └── analyzer.py           # PrivEsc algorithms, shortest path, Kerberoast detection
-├── visualizers/
-│   ├── **init**.py
-│   ├── pyvis_renderer.py     # HTML canvas graph generator with custom CSS/tooltips
-│   └── neo4j_exporter.py     # Cypher query builder & Neo4j database ingestor
-├── generate_mock_data.py     # Utility script to generate dummy AD/Nmap test data
-├── main.py                   # CLI entry point (argparse & logging)
-├── requirements.txt          # Python dependencies
-└── README.md                 # Project documentation
-
-```
-
----
-
-## ⚙️ Installation
-
-1. **Clone the repository**:
-   ```bash
-   git clone [https://github.com/your-org/visualizzer.git](https://github.com/your-org/visualizzer.git)
-   cd visualizzer
-
-```
-
-2. **Create a virtual environment**:
-```bash
-python3 -m venv venv
-source venv/bin/activate  # On Windows use: venv\Scripts\activate
-
-```
-
-
-3. **Install dependencies**:
-```bash
-pip install -r requirements.txt
-
-```
-
-
-
----
-
-## 🚀 Quick Start
-
-### 1. Generate Synthetic Test Data
-
-If you don't have active scan files available, generate mock datasets instantly:
-
-```bash
-python generate_mock_data.py --output-dir ./sample_data
-
-```
-
-### 2. Run Visualizzer Engine
-
-Analyze and generate an interactive attack path visualization:
-
+### Export to Neo4j (Cypher script)
 ```bash
 python main.py \
-  --bloodhound ./sample_data/bh_data/ \
-  --nmap ./sample_data/nmap_scan.xml \
-  --ldap ./sample_data/ldap_export.json \
-  --output attack_graph.html
-
+  --nmap mock_data/nmap_scan.xml \
+  --bloodhound mock_data/bloodhound \
+  --neo4j-cypher output/graph.cypher
 ```
-
-### 3. Open Visualization
-
-Open the generated `attack_graph.html` in any web browser to explore interactive nodes, privilege paths, and tooltips!
-
----
-
-## 💻 Command Line Interface (CLI)
-
-```bash
-usage: main.py [-h] [--bloodhound DIR] [--nmap FILE] [--ldap FILE]
-               [--output FILE] [--neo4j-uri URI] [--neo4j-user USER]
-               [--neo4j-pass PASS] [--analyze-target HVT_NAME] [--verbose]
-
-```
-
-| Parameter | Type | Default | Description |
-| --- | --- | --- | --- |
-| `--bloodhound` | Path | `None` | Path to directory containing BloodHound JSONs (`users.json`, `computers.json`, etc.) |
-| `--nmap` | Path | `None` | Path to Nmap XML output scan file |
-| `--ldap` | Path | `None` | Path to raw LDAP JSON export file |
-| `--output` | Path | `attack_graph.html` | Output HTML graph file name |
-| `--neo4j-uri` | String | `None` | Neo4j Bolt connection URI (e.g., `bolt://localhost:7687`) |
-| `--neo4j-user` | String | `neo4j` | Neo4j database user |
-| `--neo4j-pass` | String | `None` | Neo4j database password |
-| `--analyze-target` | String | `Domain Admins` | Specific target node name to calculate attack paths against |
-| `--verbose` | Flag | `False` | Enable detailed debug log output |
-
----
-
-## 🎨 Color Palette & Node Legend
-
-Visualizzer employs an intuitive security-first visual coding scheme:
-
-| Entity Type | Shape | Hex Color | Description / Example |
-| --- | --- | --- | --- |
-| **High Value Target** | 🛑 Diamond / Box | `#FF4D4D` | Domain Admins, Enterprise Admins, Key Domain Controllers |
-| **Kerberoastable User** | 🟧 Circle | `#FFA500` | Accounts with SPNs set & high privileges |
-| **Standard User** | 🟩 Circle | `#4DFF88` | Standard domain user accounts |
-| **Computer / Host** | 🟦 Laptop / Server | `#4D94FF` | Domain Workstations, Servers, & Network Devices |
-| **Group / OU** | 🟪 Folder | `#B366FF` | Active Directory Security Groups |
-| **Service / Port** | ⚪ Dot | `#E0E0E0` | Discovered open ports/services (e.g., RDP:3389, SMB:445) |
-
-### Relationship Edges
-
-* 🔴 **Bold Red Directed Line**: Critical Abuse Paths (`GenericAll`, `WriteDacl`, `AllExtendedRights`, `AdminTo`).
-* 🟠 **Orange Line**: Session / Delegation vectors (`HasSession`, `AllowedToDelegate`).
-* 🔵 **Blue Line**: Standard Group Memberships (`MemberOf`).
-
----
-
-## 🔍 Path Analysis Capabilities
-
-Visualizzer automatically executes heuristic analysis routines over the NetworkX graph:
-
-1. **Shortest Attack Vector**: Computes the shortest path from any non-privileged user node to Domain Admin targets using Dijkstra's weighted algorithm.
-2. **Kerberoastable PrivEsc Vectors**: Flags user accounts with set SPNs that possess administrative or control relationships over critical host computers.
-3. **Unconstrained Delegation Paths**: Identifies computers configured with unconstrained delegation that host active privileged user sessions.
-4. **Exposed Administrative Interfaces**: Maps local admin rights directly against open remote management ports (`3389 RDP`, `5985 WinRM`, `445 SMB`, `22 SSH`).
-
----
-
-## ⚙️ Configuration
-
-Custom colors, graph physics, and thresholds can be tuned in `config.py`:
-
-```python
-# config.py - Excerpt
-COLOR_PALETTE = {
-    "HVT": "#FF4D4D",
-    "KERBEROASTABLE": "#FFA500",
-    "USER": "#4DFF88",
-    "COMPUTER": "#4D94FF",
-    "GROUP": "#B366FF",
-    "SERVICE": "#CCCCCC"
-}
-
-```
-
----
-
-## 🗄️ Neo4j Integration
-
-To sync your fused graph directly into a Neo4j database instance:
-
+### Direct Neo4j ingestion
 ```bash
 python main.py \
-  --bloodhound ./sample_data/bh_data/ \
-  --nmap ./sample_data/nmap_scan.xml \
+  --nmap mock_data/nmap_scan.xml \
+  --bloodhound mock_data/bloodhound \
+  --neo4j-ingest \
   --neo4j-uri bolt://localhost:7687 \
   --neo4j-user neo4j \
-  --neo4j-pass MySecretPassword
-
+  --neo4j-password your_password
 ```
-
-Once synced, you can execute complex Cypher queries directly in Neo4j Browser:
-
-```cypher
-// Find all Kerberoastable users with direct admin rights to DC
-MATCH p=(u:User {is_kerberoastable: true})-[r:AdminTo]->(c:Computer {is_hvt: true})
-RETURN p
-
+---
+## Supported Input Formats
+### Nmap
+| Format | Flag | Extracts |
+|---|---|---|
+| XML (`.xml`) | `--nmap` | Hosts, open ports, OS fingerprint, services |
+| JSON (`.json`) | `--nmap` | Same fields from JSON scan output |
+### BloodHound
+| Files | Flag | Extracts |
+|---|---|---|
+| `users.json`, `computers.json`, `groups.json`, `domains.json` | `--bloodhound` | AD objects, ACLs, sessions, trust relationships |
+**Supported edge types:** `AdminTo`, `MemberOf`, `HasSession`, `GenericAll`, `WriteDacl`, `WriteOwner`, `GenericWrite`, `ForceChangePassword`, `AllowedToDelegate`, and more.
+### LDAP
+| Format | Flag | Extracts |
+|---|---|---|
+| Custom JSON export (`.json`) | `--ldap` | Users, computers, groups, SPNs, delegation flags, group memberships |
+---
+## Analysis Engine
+APV automatically detects:
+| Vector | What it finds |
+|---|---|
+| **Shortest PrivEsc paths** | Routes from low-privileged users to Domain Admins / HVTs |
+| **Kerberoast + AdminTo** | Kerberoastable service accounts with local admin rights |
+| **Unconstrained delegation** | Computers with unconstrained delegation and active user sessions |
+| **Sensitive port exposure** | Ports 3389, 445, 5985, etc. on hosts where a user has admin rights |
+Results are printed to the console and optionally saved as JSON via `--analysis-report`.
+---
+## Visualization Legend
+The interactive HTML graph uses risk-based styling:
+| Color | Node Type |
+|---|---|
+| 🔴 `#FF4D4D` | High Value Targets (Domain Admins, Enterprise Admins) |
+| 🟠 `#FF9933` | Kerberoastable users |
+| 🟢 `#4DFF88` | Standard users |
+| 🔵 `#4D94FF` | Computers / network devices |
+| 🟣 `#B366FF` | Groups |
+| 🟡 `#FFD94D` | Domains |
+| Edge Style | Meaning |
+|---|---|
+| **Bold red arrow** | High-risk ACL (`GenericAll`, `WriteDacl`, `AdminTo`) |
+| Gray arrow | Standard relationship (`MemberOf`, `Contains`) |
+| Blue arrow | Active session (`HasSession`) |
+**Interactive controls:** physics simulation, node search/filter, hover tooltips (ports, SPNs, group memberships), zoom & pan.
+---
+## CLI Reference
 ```
-
+usage: apv [-h] [--nmap FILE] [--bloodhound DIR|FILE] [--ldap FILE]
+           [-o FILE] [--analysis-report FILE] [--no-highlight]
+           [--neo4j-cypher FILE] [--neo4j-ingest]
+           [--neo4j-uri URI] [--neo4j-user USER] [--neo4j-password PASS]
+           [--neo4j-database DB] [--log-level LEVEL] [--max-paths N]
+Input Sources:
+  --nmap FILE           Nmap XML or JSON scan file (repeatable)
+  --bloodhound PATH     BloodHound JSON directory or file (repeatable)
+  --ldap FILE           LDAP JSON export file (repeatable)
+Output:
+  -o, --output FILE     PyVis HTML output (default: attack_path_graph.html)
+  --analysis-report     Save analysis results as JSON
+  --no-highlight        Disable attack-path highlighting in graph
+Neo4j Export:
+  --neo4j-cypher FILE   Export graph as Cypher script
+  --neo4j-ingest        Directly ingest into Neo4j database
+General:
+  --log-level           DEBUG | INFO | WARNING | ERROR
+  --max-paths N         Max privilege escalation paths to report (default: 50)
+```
 ---
-
-## 🤝 Contributing
-
-Contributions are welcome! Please follow these steps:
-
-1. Fork the repository.
-2. Create a feature branch (`git checkout -b feature/AmazingFeature`).
-3. Commit your changes (`git commit -m 'Add some AmazingFeature'`).
-4. Push to the branch (`git push origin feature/AmazingFeature`).
-5. Open a Pull Request.
-
+## Project Structure
+```
+Visualizzer/
+├── main.py                      # CLI entry point
+├── config.py                    # Colors, shapes, constants
+├── models.py                    # Data classes (GraphNode, GraphEdge, etc.)
+├── generate_mock_data.py        # Demo data generator
+├── requirements.txt
+├── parsers/
+│   ├── nmap_parser.py           # Nmap XML/JSON parser
+│   ├── bloodhound_parser.py     # BloodHound JSON parser
+│   └── ldap_parser.py           # LDAP JSON parser
+├── core/
+│   ├── graph_builder.py         # Multi-source graph fusion
+│   └── analyzer.py              # PrivEsc path analysis engine
+└── visualizers/
+    ├── pyvis_renderer.py        # Interactive HTML renderer
+    └── neo4j_exporter.py        # Neo4j Cypher export & ingestion
+```
 ---
-
-## 📄 License
-
-Distributed under the **MIT License**. See `LICENSE` for more information.
+## Example Output
+Running against the included mock data produces:
+```
+Graph built: 11 nodes, 15 edges
+High-value targets: 1 (DOMAIN ADMINS@CORP.LOCAL)
+Privilege escalation paths: 1
+Kerberoast + AdminTo risks: 2
+Unconstrained delegation risks: 1
+Sensitive port risks: 2
+Interactive graph: output/attack_path_graph.html
+```
+---
+## License
+This project is intended for **authorized security assessments only**. Use responsibly and only on systems you have explicit permission to test.
+---
+<p align="center">
+  <sub>Built with Python · NetworkX · PyVis · Neo4j</sub>
+</p>
