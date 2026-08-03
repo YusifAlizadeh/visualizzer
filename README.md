@@ -1,3 +1,98 @@
+# Attack Path Visualizer (APV)
+> **Fuse recon data. Map privilege escalation paths. Visualize the attack surface.**
+**Attack Path Visualizer** is a modular Python CLI that ingests security reconnaissance outputs — **Nmap**, **BloodHound**, and **LDAP** exports — fuses them into a unified directed graph, identifies privilege escalation vectors, and renders an interactive HTML attack-path map.
+Built for red teamers, penetration testers, and security engineers who need a single pane of glass across network and Active Directory enumeration data.
+---
+## Features
+| Capability | Description |
+|---|---|
+| **Multi-source ingestion** | Parse Nmap XML/JSON, BloodHound JSON, and custom LDAP dumps in one run |
+| **Intelligent node fusion** | Merge hosts by IP, FQDN, and short hostname (e.g. `192.168.1.10` ↔ `DC01.corp.local`) |
+| **PrivEsc analysis** | Shortest paths to Domain Admins / HVTs, Kerberoast + AdminTo, unconstrained delegation, sensitive ports |
+| **Interactive HTML graph** | PyVis canvas with physics, search bar, tooltips, and risk-based color coding |
+| **Neo4j export** | Generate Cypher scripts or ingest directly into a Neo4j instance |
+| **Modular architecture** | Clean separation of parsers, graph engine, analyzer, and renderers |
+---
+## How It Works
+```mermaid
+flowchart LR
+    A[Nmap XML/JSON] --> G[Graph Builder]
+    B[BloodHound JSON] --> G
+    C[LDAP JSON] --> G
+    G --> N[NetworkX DiGraph]
+    N --> E[Attack Path Analyzer]
+    N --> V[PyVis Renderer]
+    N --> J[Neo4j Exporter]
+    E --> V
+    V --> H[Interactive HTML]
+    J --> K[(Neo4j DB)]
+```
+---
+## Requirements
+- **Python 3.10+**
+- Dependencies listed in `requirements.txt`:
+  - [NetworkX](https://networkx.org/) — graph engine
+  - [PyVis](https://pyvis.readthedocs.io/) — interactive visualization
+  - [Neo4j Python Driver](https://neo4j.com/docs/python-manual/current/) — optional database export
+---
+## Installation
+```bash
+git clone https://github.com/YOUR_USERNAME/Visualizzer.git
+cd Visualizzer
+pip install -r requirements.txt
+```
+---
+## Quick Start
+### 1. Generate demo data
+```bash
+python generate_mock_data.py --output mock_data
+```
+This creates realistic sample files under `mock_data/`:
+```
+mock_data/
+├── nmap_scan.xml
+├── ldap_export.json
+└── bloodhound/
+    ├── users.json
+    ├── computers.json
+    ├── groups.json
+    └── domains.json
+```
+### 2. Run APV
+```bash
+python main.py \
+  --nmap mock_data/nmap_scan.xml \
+  --bloodhound mock_data/bloodhound \
+  --ldap mock_data/ldap_export.json \
+  -o output/attack_path_graph.html \
+  --analysis-report output/analysis.json
+```
+### 3. Open the graph
+Open `output/attack_path_graph.html` in any modern browser.
+---
+## Usage
+### Basic scan fusion
+```bash
+python main.py \
+  --nmap scans/internal.xml \
+  --bloodhound bloodhound_export/ \
+  -o reports/attack_graph.html
+```
+### Full pipeline with all sources
+```bash
+python main.py \
+  --nmap scans/nmap.xml \
+  --bloodhound bloodhound/ \
+  --ldap ldap_dump.json \
+  -o output/graph.html \
+  --analysis-report output/analysis.json \
+  --log-level INFO
+```
+### Multiple Nmap files
+```bash
+python main.py \
+  --nmap scan1.xml \
+  --nmap scan2.xml \
   --bloodhound bloodhound/ \
   -o output/combined.html
 ```
@@ -55,71 +150,3 @@ The interactive HTML graph uses risk-based styling:
 | 🔵 `#4D94FF` | Computers / network devices |
 | 🟣 `#B366FF` | Groups |
 | 🟡 `#FFD94D` | Domains |
-| Edge Style | Meaning |
-|---|---|
-| **Bold red arrow** | High-risk ACL (`GenericAll`, `WriteDacl`, `AdminTo`) |
-| Gray arrow | Standard relationship (`MemberOf`, `Contains`) |
-| Blue arrow | Active session (`HasSession`) |
-**Interactive controls:** physics simulation, node search/filter, hover tooltips (ports, SPNs, group memberships), zoom & pan.
----
-## CLI Reference
-```
-usage: apv [-h] [--nmap FILE] [--bloodhound DIR|FILE] [--ldap FILE]
-           [-o FILE] [--analysis-report FILE] [--no-highlight]
-           [--neo4j-cypher FILE] [--neo4j-ingest]
-           [--neo4j-uri URI] [--neo4j-user USER] [--neo4j-password PASS]
-           [--neo4j-database DB] [--log-level LEVEL] [--max-paths N]
-Input Sources:
-  --nmap FILE           Nmap XML or JSON scan file (repeatable)
-  --bloodhound PATH     BloodHound JSON directory or file (repeatable)
-  --ldap FILE           LDAP JSON export file (repeatable)
-Output:
-  -o, --output FILE     PyVis HTML output (default: attack_path_graph.html)
-  --analysis-report     Save analysis results as JSON
-  --no-highlight        Disable attack-path highlighting in graph
-Neo4j Export:
-  --neo4j-cypher FILE   Export graph as Cypher script
-  --neo4j-ingest        Directly ingest into Neo4j database
-General:
-  --log-level           DEBUG | INFO | WARNING | ERROR
-  --max-paths N         Max privilege escalation paths to report (default: 50)
-```
----
-## Project Structure
-```
-Visualizzer/
-├── main.py                      # CLI entry point
-├── config.py                    # Colors, shapes, constants
-├── models.py                    # Data classes (GraphNode, GraphEdge, etc.)
-├── generate_mock_data.py        # Demo data generator
-├── requirements.txt
-├── parsers/
-│   ├── nmap_parser.py           # Nmap XML/JSON parser
-│   ├── bloodhound_parser.py     # BloodHound JSON parser
-│   └── ldap_parser.py           # LDAP JSON parser
-├── core/
-│   ├── graph_builder.py         # Multi-source graph fusion
-│   └── analyzer.py              # PrivEsc path analysis engine
-└── visualizers/
-    ├── pyvis_renderer.py        # Interactive HTML renderer
-    └── neo4j_exporter.py        # Neo4j Cypher export & ingestion
-```
----
-## Example Output
-Running against the included mock data produces:
-```
-Graph built: 11 nodes, 15 edges
-High-value targets: 1 (DOMAIN ADMINS@CORP.LOCAL)
-Privilege escalation paths: 1
-Kerberoast + AdminTo risks: 2
-Unconstrained delegation risks: 1
-Sensitive port risks: 2
-Interactive graph: output/attack_path_graph.html
-```
----
-## License
-This project is intended for **authorized security assessments only**. Use responsibly and only on systems you have explicit permission to test.
----
-<p align="center">
-  <sub>Built with Python · NetworkX · PyVis · Neo4j</sub>
-</p>
